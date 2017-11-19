@@ -96,7 +96,13 @@ class Core_SC:
         Extract the following signals from instruction.
             opcode, rs, rt, rd, funct, immediate
         """
+
         sig.opcode = (instruction >> 26) & 0x3F
+        sig.rs = (instruction >> 21) & 0x1F
+        sig.rt = (instruction >> 16) & 0x1F
+        sig.rd = (instruction >> 11) & 0x1F
+        sig.funct = instruction & 0x3F
+        sig.immediate = instruction & 0xFFFF
 
     def main_control(self, opcode, sig):
         """
@@ -110,9 +116,32 @@ class Core_SC:
             sig.RegWrite = 1
             sig.RegDst = 1
             sig.ALUOp = 2
-        #else:
-        #    raise ValueError("Unknown opcode 0x%02X" % opcode)
-        return 
+
+        elif opcode == 8:           # I-type addi
+            sig.RegWrite = 1
+            sig.ALUSrc   = 1 
+
+        elif opcode == 35:          # I-type lw
+            sig.RegWrite = 1
+            sig.MemRead  = 1
+            sig.MemtoReg = 1
+            sig.ALUSrc   = 1
+
+        elif opcode == 43:          # I-type sw
+            sig.MemWrite = 1    
+            sig.ALUSrc   = 1
+
+        elif opcode == 4:           # I-type beq
+             sig.Branch = 1
+             sig.ALUSrc = 1
+             sig.ALUOp  = 1
+
+        elif opcode == 2:           # J-type j
+            sig.Jump = 1
+
+        else:
+            raise ValueError("Unknown opcode 0x%02X" % opcode)
+        return
 
     def ALU_control(self, alu_op, funct):  
         """
