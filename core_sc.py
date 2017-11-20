@@ -115,7 +115,7 @@ class Core_SC:
         if opcode == 0:             # R-Type 000000
             sig.RegWrite = 1
             sig.RegDst = 1
-            sig.ALUOp = 2
+            sig.ALUOp = 2           # 10
 
         elif opcode == 8:           # I-type addi
             sig.RegWrite = 1
@@ -133,8 +133,7 @@ class Core_SC:
 
         elif opcode == 4:           # I-type beq
              sig.Branch = 1
-             sig.ALUSrc = 1
-             sig.ALUOp  = 1
+             sig.ALUOp  = 1         # 01
 
         elif opcode == 2:           # J-type j
             sig.Jump = 1
@@ -154,8 +153,26 @@ class Core_SC:
         # One example is given, continue to finish other cases.
         if alu_op == 0:             # 00  
             alu_control_out = 2     # 0010
-        # else:
-        #    raise ValueError("Unknown opcode code 0x%02X" % alu_op)
+        
+        elif alu_op == 1:           # 01
+            alu_control_out = 6     # 0110
+
+        elif alu_op == 2:               # 10
+            if funct == 32:             # add 100000
+                alu_control_out = 2     # 0010
+            elif funct == 34:           # sub 100010
+                alu_control_out = 6     # 0110
+            elif funct == 36:           # and 100100
+                alu_control_out = 0     # 0000
+            elif funct == 37:           # or 100101
+                alu_control_out = 1     # 0110
+            elif funct == 38:           # slt 100110
+                alu_control_out = 7     # 0111
+            else:
+                raise ValueError("Unknown opcode code 0x%02X" % alu_op)            
+
+        else:
+           raise ValueError("Unknown opcode code 0x%02X" % alu_op)
         return alu_control_out
 
     def sign_extend(self, immd):
@@ -165,14 +182,17 @@ class Core_SC:
         Extract the lower 16 bits. 
         If bit 15 of immd is 1, compute the correct negative value (immd - 0x10000).
         """
-        immd = immd & 0xFFFF
+        if (immd >> 15) == 0:
+            immd = immd & 0xFFFF
+        else:
+            immd = (immd - 0x10000) & 0xFFFFFFFF
         return immd
 
     def calculate_branch_address(self, pc_4, extended):
-        addr = 0
+        addr = (extended << 2) + pc_4
         return addr
 
     def calculate_jump_address(self, pc_4, instruction):
-        addr = 0
+        addr = ((instruction & 0x3FFFFFF) << 2) | (pc_4 & 0xF0000000)
         return addr
 
