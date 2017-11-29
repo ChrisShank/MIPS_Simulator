@@ -84,6 +84,43 @@ class Core_SC:
             # Preapre RF write 
             # Compute PC_new 
 
+            # RF Inputs
+            self.RF.set_read_registers(self.signals.rs, self.signals.rt)
+            self.signals.Write_register = MUX_2_1(self.signals.rt, self.signals.rd, self.signals.RegDst)
+            self.RF.set_write_register(self.signals.Write_register)
+            self.RF.set_regwrite(self.signals.RegWrite)
+
+            # RF Outputs
+            self.signals.RF_read_data_1 = self.RF.get_read_data_1()
+            self.signals.RF_read_data_2 = self.RF.get_read_data_2()
+
+            # ALU Input
+            self.signals.ALU_input_2 = MUX_2_1(self.signals.RF_read_data_2, self.signals.Sign_extended_immediate, self.signals.ALUSrc)
+            
+            # ALU Output
+            self.signals.ALU_returned_value = ALU_32(self.signals.RF_read_data_1, self.signals.ALU_input_2, self.signals.ALU_operation)
+            self.signals.ALU_result = self.signals.ALU_returned_value[0]
+            self.signals.ALU_Zero = self.signals.ALU_returned_value[1]
+
+            # D-Mem Input
+            self.D_Mem.set_address(self.signals.ALU_result)
+            self.D_Mem.set_data(self.signals.RF_read_data_2)
+            self.D_Mem.set_memread(self.signals.MemRead)
+            self.D_Mem.set_memwrite(self.signals.MemWrite)
+        
+            # D-Mem Output
+            self.D_Mem.run()
+            self.signals.Mem_read_data = self.D_Mem.get_data()
+
+            #I_Mem Write Data
+            self.signals.Write_data = MUX_2_1(self.signals.ALU_result, self.signals.Mem_read_data, self.signals.MemtoReg)
+            self.RF.set_write_data(self.signals.Write_data)
+
+            # Determine new PC 
+            self.signals.PCSrc = AND_2(self.signals.Branch , self.signals.ALU_Zero)
+            self.signals.PC_branch = MUX_2_1(self.signals.PC_4, self.signals.Branch_address,  self.signals.PCSrc)
+            self.signals.PC_new = MUX_2_1(self.signals.PC_branch, self.signals.Jump_address, self.signals.Jump)
+
             self.RegPC.set_data(self.signals.PC_new)
             self.RegPC.set_write(1)
 
@@ -91,6 +128,7 @@ class Core_SC:
             if ((self.mode & 8) == 0): utilities.print_signals_2(self.signals)
         return i_cycles
             
+    
     def signals_from_instruction (self, instruction, sig):
         """
         Extract the following signals from instruction.
@@ -185,7 +223,7 @@ class Core_SC:
         if (immd >> 15) == 0:                       # check first bit
             immd = immd & 0xFFFF                    # extend 0's
         else:
-            immd = (immd - 0x10000) & 0xFFFFFFFF    # extend 1's
+            immd = (immd - 0x10000)    # extend 1's
         return immd
 
     def calculate_branch_address(self, pc_4, extended):
